@@ -40,13 +40,19 @@ cleanup() {
         rm monitor.pid
     fi
     rm -f ovh-ksa_temp.py
-    
-    # 压缩旧日志文件
+}
+
+# 添加日志归档函数
+archive_logs() {
+    print_info "归档旧日志文件..."
     if [ -f "$PYTHON_LOG" ]; then
-        gzip -f "$PYTHON_LOG"
-        mv "$PYTHON_LOG.gz" "$LOG_DIR/python_output_$(date +%Y%m%d_%H%M%S).log.gz"
+        local timestamp=$(date +%Y%m%d_%H%M%S)
+        gzip -c "$PYTHON_LOG" > "$LOG_DIR/python_output_${timestamp}.log.gz"
+        : > "$PYTHON_LOG"  # 清空当前日志文件而不是删除它
+        print_success "日志已归档为: python_output_${timestamp}.log.gz"
     fi
 }
+
 trap cleanup EXIT
 
 # 验证输入参数
@@ -237,9 +243,10 @@ show_menu() {
         echo "2. 停止监控脚本"
         echo "3. 查看Python输出"
         echo "4. 查看历史日志"
-        echo "5. 退出"
+        echo "5. 归档当前日志"
+        echo "6. 退出"
         echo
-        read -p "请输入选项 (1-5): " choice
+        read -p "请输入选项 (1-6): " choice
 
         case $choice in
             1)
@@ -279,6 +286,9 @@ show_menu() {
                 fi
                 ;;
             5)
+                archive_logs
+                ;;
+            6)
                 print_info "退出程序"
                 exit 0
                 ;;
