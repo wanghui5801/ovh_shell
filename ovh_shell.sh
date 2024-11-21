@@ -9,6 +9,12 @@ MAGENTA='\e[35m'
 CYAN='\e[36m'
 RESET='\e[0m'  # 重置颜色
 
+# 检查是否以 root 用户运行
+if [ "$(id -u)" -ne 0 ]; then
+    echo -e "${RED}请以 root 用户或使用 sudo 运行此脚本。${RESET}"
+    exit 1
+fi
+
 # 检查是否使用 bash 运行
 if [ -z "$BASH_VERSION" ]; then
     echo -e "${RED}请使用 bash 运行此脚本${RESET}"
@@ -18,31 +24,31 @@ fi
 # 检测包管理器
 if [ -x "$(command -v apt-get)" ]; then
     PACKAGE_MANAGER="apt-get"
-    UPDATE_CMD="sudo apt-get update"
-    INSTALL_CMD="sudo apt-get install -y"
+    UPDATE_CMD="apt-get update"
+    INSTALL_CMD="apt-get install -y"
     PYTHON_PKG="python3 python3-pip"
 elif [ -x "$(command -v yum)" ]; then
     PACKAGE_MANAGER="yum"
-    UPDATE_CMD="sudo yum makecache"
-    INSTALL_CMD="sudo yum install -y"
+    UPDATE_CMD="yum makecache"
+    INSTALL_CMD="yum install -y"
     PYTHON_PKG="python3 python3-pip"
 elif [ -x "$(command -v dnf)" ]; then
     PACKAGE_MANAGER="dnf"
-    UPDATE_CMD="sudo dnf makecache"
-    INSTALL_CMD="sudo dnf install -y"
+    UPDATE_CMD="dnf makecache"
+    INSTALL_CMD="dnf install -y"
     PYTHON_PKG="python3 python3-pip"
 elif [ -x "$(command -v zypper)" ]; then
     PACKAGE_MANAGER="zypper"
-    UPDATE_CMD="sudo zypper refresh"
-    INSTALL_CMD="sudo zypper install -y"
+    UPDATE_CMD="zypper refresh"
+    INSTALL_CMD="zypper install -y"
     PYTHON_PKG="python3 python3-pip"
 elif [ -x "$(command -v pacman)" ]; then
     PACKAGE_MANAGER="pacman"
-    UPDATE_CMD="sudo pacman -Sy"
-    INSTALL_CMD="sudo pacman -S --noconfirm"
+    UPDATE_CMD="pacman -Sy"
+    INSTALL_CMD="pacman -S --noconfirm"
     PYTHON_PKG="python python-pip"
 else
-    echo -e "${RED}不支持的包管理器。请手动安装 Python 3 和 pip3。${RESET}"
+    echo -e "${RED}不支持的包管理器。请手动安装 Python 3 和 pip。${RESET}"
     exit 1
 fi
 
@@ -53,7 +59,7 @@ $UPDATE_CMD
 echo -e "${CYAN}正在安装必要的包...${RESET}"
 $INSTALL_CMD $PYTHON_PKG
 
-# 检查 pip3 是否安装成功
+# 检查 pip 是否安装成功
 if ! command -v pip3 &> /dev/null; then
     echo -e "${YELLOW}pip3 未成功安装，尝试使用 pip。${RESET}"
     if ! command -v pip &> /dev/null; then
@@ -68,19 +74,15 @@ fi
 
 # 安装所需的 Python 模块
 echo -e "${CYAN}正在安装所需的 Python 模块...${RESET}"
-$PIP_CMD install --user ovh requests
+$PIP_CMD install ovh requests
 
-# 将 ~/.local/bin 添加到 PATH，以确保可以找到安装在用户目录的模块
-export PATH=$PATH:~/.local/bin
-
-# 提示用户输入 BOT_TOKEN 和 CHAT_ID
+# 提示用户输入凭据
 echo -e "${GREEN}请按照提示输入您的 Telegram 和 OVH API 凭据：${RESET}"
 echo -e "${YELLOW}----------------------------------------${RESET}"
 read -p "$(echo -e ${MAGENTA}请输入您的 Telegram BOT_TOKEN:${RESET} )" BOT_TOKEN
 read -p "$(echo -e ${MAGENTA}请输入您的 Telegram CHAT_ID:${RESET} )" CHAT_ID
 
-# 提示用户输入 OVH API 凭据
-read -p "$(echo -e ${MAGENTA}请输入您的 OVH_ENDPOINT (默认: ovh-eu):${RESET} )" OVH_ENDPOINT
+read -p "$(echo -e ${MAGENTA}请输入您的 OVH_ENDPOINT [默认: ovh-eu]:${RESET} )" OVH_ENDPOINT
 OVH_ENDPOINT=${OVH_ENDPOINT:-ovh-eu}
 
 read -p "$(echo -e ${MAGENTA}请输入您的 OVH_APPLICATION_KEY:${RESET} )" OVH_APPLICATION_KEY
@@ -102,6 +104,10 @@ if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ] || [ -z "$OVH_APPLICATION_KEY" ] || 
     echo -e "${RED}错误：所有输入都是必填项，请确保填写完整。${RESET}"
     exit 1
 fi
+
+# 下载 Python 脚本
+echo -e "${CYAN}正在下载 Python 脚本...${RESET}"
+curl -sSL https://raw.githubusercontent.com/wanghui5801/ovh_shell/main/ovh-ksa.py -o ovh-ksa.py
 
 # 运行您的 Python 脚本
 echo -e "${CYAN}正在运行您的 Python 脚本...${RESET}"
