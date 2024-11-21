@@ -114,7 +114,7 @@ Chat with the official [@BotFather](https://t.me/BotFather) to create a Telegram
 
 **Next, send any message to your newly created bot.**
 
-Then open [https://api.telegram.org/bot<token>/getUpdates](https://api.telegram.org/bot<token>/getUpdates) to get your chat ID.
+Then open [`https://api.telegram.org/bot<token>/getUpdates`](https://api.telegram.org/bot<token>/getUpdates) to get your chat ID.
 
 Replace `<token>` with the token you received when creating the bot. Now you have both the BOT_TOKEN and CHAT_ID parameters needed for the script.
 
