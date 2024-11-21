@@ -1,27 +1,27 @@
 #!/bin/bash
 
-# 定义颜色
+# Define colors
 RED='\e[31m'
 GREEN='\e[32m'
 YELLOW='\e[33m'
 BLUE='\e[34m'
 MAGENTA='\e[35m'
 CYAN='\e[36m'
-RESET='\e[0m'  # 重置颜色
+RESET='\e[0m'  # Reset color
 
-# 检查是否以 root 用户运行
+# Check if running as root
 if [ "$(id -u)" -ne 0 ]; then
-    echo -e "${RED}请以 root 用户或使用 sudo 运行此脚本。${RESET}"
+    echo -e "${RED}Please run this script as root or using sudo.${RESET}"
     exit 1
 fi
 
-# 检查是否使用 bash 运行
+# Check if running with bash
 if [ -z "$BASH_VERSION" ]; then
-    echo -e "${RED}请使用 bash 运行此脚本${RESET}"
+    echo -e "${RED}Please run this script with bash${RESET}"
     exit 1
 fi
 
-# 检测包管理器
+# Detect package manager
 if [ -x "$(command -v apt-get)" ]; then
     PACKAGE_MANAGER="apt-get"
     UPDATE_CMD="apt-get update"
@@ -48,22 +48,22 @@ elif [ -x "$(command -v pacman)" ]; then
     INSTALL_CMD="pacman -S --noconfirm"
     PYTHON_PKG="python python-pip"
 else
-    echo -e "${RED}不支持的包管理器。请手动安装 Python 3 和 pip。${RESET}"
+    echo -e "${RED}Unsupported package manager. Please manually install Python 3 and pip.${RESET}"
     exit 1
 fi
 
-# 更新软件包列表并安装必要的包
-echo -e "${CYAN}正在更新软件包列表...${RESET}"
+# Update package list and install required packages
+echo -e "${CYAN}Updating package list...${RESET}"
 $UPDATE_CMD
 
-echo -e "${CYAN}正在安装必要的包...${RESET}"
+echo -e "${CYAN}Installing required packages...${RESET}"
 $INSTALL_CMD $PYTHON_PKG
 
-# 检查 pip 是否安装成功
+# Check if pip is installed successfully
 if ! command -v pip3 &> /dev/null; then
-    echo -e "${YELLOW}pip3 未成功安装，尝试使用 pip。${RESET}"
+    echo -e "${YELLOW}pip3 installation failed, trying pip.${RESET}"
     if ! command -v pip &> /dev/null; then
-        echo -e "${RED}pip 未安装，请检查您的包管理器和网络连接，或手动安装 pip。${RESET}"
+        echo -e "${RED}pip is not installed. Please check your package manager and network connection, or install pip manually.${RESET}"
         exit 1
     else
         PIP_CMD="pip"
@@ -72,27 +72,27 @@ else
     PIP_CMD="pip3"
 fi
 
-# 安装所需的 Python 模块
-echo -e "${CYAN}正在安装所需的 Python 模块...${RESET}"
+# Install required Python modules
+echo -e "${CYAN}Installing required Python modules...${RESET}"
 $PIP_CMD install ovh requests
 
-# 提示用户输入凭据
-echo -e "${GREEN}请按照提示输入您的 Telegram 和 OVH API 凭据：${RESET}"
+# Prompt user for credentials
+echo -e "${GREEN}Please enter your Telegram and OVH API credentials:${RESET}"
 echo -e "${YELLOW}----------------------------------------${RESET}"
 
-read -p "$(echo -e ${MAGENTA}请输入您的 Telegram BOT_TOKEN:${RESET} )" BOT_TOKEN </dev/tty
-read -p "$(echo -e ${MAGENTA}请输入您的 Telegram CHAT_ID:${RESET} )" CHAT_ID </dev/tty
+read -p "$(echo -e ${MAGENTA}Please enter your Telegram BOT_TOKEN:${RESET} )" BOT_TOKEN </dev/tty
+read -p "$(echo -e ${MAGENTA}Please enter your Telegram CHAT_ID:${RESET} )" CHAT_ID </dev/tty
 
-read -p "$(echo -e ${MAGENTA}请输入您的 OVH_ENDPOINT [默认: ovh-eu]:${RESET} )" OVH_ENDPOINT </dev/tty
+read -p "$(echo -e ${MAGENTA}Please enter your OVH_ENDPOINT [default: ovh-eu]:${RESET} )" OVH_ENDPOINT </dev/tty
 OVH_ENDPOINT=${OVH_ENDPOINT:-ovh-eu}
 
-read -p "$(echo -e ${MAGENTA}请输入您的 OVH_APPLICATION_KEY:${RESET} )" OVH_APPLICATION_KEY </dev/tty
-read -s -p "$(echo -e ${MAGENTA}请输入您的 OVH_APPLICATION_SECRET:${RESET} )" OVH_APPLICATION_SECRET </dev/tty
+read -p "$(echo -e ${MAGENTA}Please enter your OVH_APPLICATION_KEY:${RESET} )" OVH_APPLICATION_KEY </dev/tty
+read -s -p "$(echo -e ${MAGENTA}Please enter your OVH_APPLICATION_SECRET:${RESET} )" OVH_APPLICATION_SECRET </dev/tty
 echo
-read -p "$(echo -e ${MAGENTA}请输入您的 OVH_CONSUMER_KEY:${RESET} )" OVH_CONSUMER_KEY </dev/tty
+read -p "$(echo -e ${MAGENTA}Please enter your OVH_CONSUMER_KEY:${RESET} )" OVH_CONSUMER_KEY </dev/tty
 echo -e "${YELLOW}----------------------------------------${RESET}"
 
-# 导出环境变量
+# Export environment variables
 export BOT_TOKEN
 export CHAT_ID
 export OVH_ENDPOINT
@@ -100,16 +100,16 @@ export OVH_APPLICATION_KEY
 export OVH_APPLICATION_SECRET
 export OVH_CONSUMER_KEY
 
-# 检查必要的环境变量是否已设置
+# Check if required environment variables are set
 if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ] || [ -z "$OVH_APPLICATION_KEY" ] || [ -z "$OVH_APPLICATION_SECRET" ] || [ -z "$OVH_CONSUMER_KEY" ]; then
-    echo -e "${RED}错误：所有输入都是必填项，请确保填写完整。${RESET}"
+    echo -e "${RED}Error: All inputs are required. Please ensure all fields are filled.${RESET}"
     exit 1
 fi
 
-# 下载 Python 脚本
-echo -e "${CYAN}正在下载 Python 脚本...${RESET}"
+# Download Python script
+echo -e "${CYAN}Downloading Python script...${RESET}"
 curl -sSL https://raw.githubusercontent.com/wanghui5801/ovh_shell/main/ovh-ksa.py -o ovh-ksa.py
 
-# 运行您的 Python 脚本
-echo -e "${CYAN}正在运行您的 Python 脚本...${RESET}"
+# Run Python script
+echo -e "${CYAN}Running your Python script...${RESET}"
 python3 ovh-ksa.py
