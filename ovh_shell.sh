@@ -235,6 +235,7 @@ stop_monitor() {
 }
 
 # 显示菜单
+# 显示菜单
 show_menu() {
     while true; do
         echo
@@ -242,11 +243,9 @@ show_menu() {
         echo "1. 运行监控脚本"
         echo "2. 停止监控脚本"
         echo "3. 查看Python输出"
-        echo "4. 查看历史日志"
-        echo "5. 归档当前日志"
-        echo "6. 退出"
+        echo "4. 退出"
         echo
-        read -p "请输入选项 (1-6): " choice
+        read -p "请输入选项 (1-4): " choice
 
         case $choice in
             1)
@@ -270,25 +269,6 @@ show_menu() {
                 fi
                 ;;
             4)
-                if [ ! -d "$LOG_DIR" ]; then
-                    init_logging
-                fi
-                echo "可用的日志文件："
-                ls -lh "$LOG_DIR"/*.log* 2>/dev/null || echo "没有找到日志文件"
-                echo
-                read -p "请输入要查看的日志文件名（直接回车返回）: " log_file
-                if [ ! -z "$log_file" ]; then
-                    if [ -f "$LOG_DIR/$log_file" ]; then
-                        less "$LOG_DIR/$log_file"
-                    else
-                        print_error "文件不存在"
-                    fi
-                fi
-                ;;
-            5)
-                archive_logs
-                ;;
-            6)
                 print_info "退出程序"
                 exit 0
                 ;;
@@ -305,12 +285,6 @@ setup_script() {
     
     # 检查依赖
     check_requirements
-    
-    # 设置仓库
-    setup_repository
-    
-    # 确保脚本有执行权限
-    chmod +x ovh_shell.sh
     
     # 获取用户输入
     print_info "请输入必要的参数："
