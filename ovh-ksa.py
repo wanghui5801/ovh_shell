@@ -34,22 +34,20 @@ client = ovh.Client(
     consumer_key=OVH_CONSUMER_KEY,
 )
 
+
 # 函数：重试网络请求
 def retry_request(func, *args, max_retries=5, **kwargs):
     retries = 0
-    max_retries = int(max_retries)
+    max_retries = int(max_retries)  # 确保 max_retries 是整数类型
     while retries < max_retries:
         try:
             return func(*args, **kwargs)
         except (APIError, NetworkError, RequestException) as e:
             retries += 1
             print(f"Request failed: '{e}', retrying... ({retries}/{max_retries})")
-            if retries == max_retries:
-                send_telegram_error(f"Maximum retries reached for request: {func.__name__}")
-            time.sleep(min(2 * retries, 10))  # 指数退避，最大等待10秒
+            time.sleep(2)  # 等待2秒后重试
         except Exception as e:
             print(f"Unexpected error: {e}")
-            send_telegram_error(f"Unexpected error in {func.__name__}: {str(e)}")
             return None
     print("Max retries reached. Request failed.")
     return None
@@ -70,11 +68,6 @@ def send_telegram_error(message):
     except Exception as e:
         print(f"Failed to send error message via Telegram: {e}")
 
-# 修改打印函数
-def log_message(message):
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    print(f"[{timestamp}] {message}")
-
 # 无限循环，直到订单完成
 while True:
     try:
@@ -86,14 +79,11 @@ while True:
 
         # 获取 availability 信息
         ava = retry_request(client.get, "/dedicated/server/datacenter/availabilities", datacenters="bhs", planCode="24ska01")
-        if not ava:
-            time.sleep(2)
+        if ava is None or len(ava) == 0:
             continue
-            
-        availability_status = ava[0]['datacenters'][0]['availability']
-        log_message(f"Current availability status: {availability_status}")
 
-        if availability_status != 'unavailable':
+        # 检查 availability
+        if ava[0]['datacenters'][0]['availability'] != 'unavailable':
             # 第一条消息：KSA is available
             message = "KSA is available"
             url = f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage'
@@ -167,13 +157,10 @@ while True:
 
     except Exception as e:
         error_message = str(e)
-        print(f"Critical error occurred: {error_message}")
-        send_telegram_error(f"Critical error: {error_message}")
-        time.sleep(30)  # 发生严重错误时等待更长时间
-        continue  # 使用 continue 而不是 break，保持脚本运行
+        print(f"An error occurred: {error_message}")
+        # 将错误消息发送到 Telegram
+        send_telegram_error(error_message)
+        break  # 遇到不可恢复的错误时，停止循环
 
-    # 根据可用性状态动态调整查询间隔
-    if availability_status == 'unavailable':
-        time.sleep(3)  # 不可用时等待5秒
-    else:
-        time.sleep(2)  # 可用时快速轮询
+    # 每次循环等待 2 分钟再重试，避免频繁请求
+    time.sleep(2)
