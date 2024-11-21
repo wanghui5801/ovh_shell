@@ -3,6 +3,7 @@ import ovh
 import time
 from requests.exceptions import RequestException
 from ovh.exceptions import APIError, NetworkError
+from datetime import datetime
 
 # 您的 bot token 和 chat id
 BOT_TOKEN = ""
@@ -52,6 +53,11 @@ def send_telegram_error(message):
     except Exception as e:
         print(f"Failed to send error message via Telegram: {e}")
 
+# 修改打印函数
+def log_message(message):
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    print(f"[{timestamp}] {message}")
+
 # 无限循环，直到订单完成
 while True:
     try:
@@ -68,7 +74,7 @@ while True:
             continue
             
         availability_status = ava[0]['datacenters'][0]['availability']
-        print(f"Current availability status: {availability_status}")  # 添加状态日志
+        log_message(f"Current availability status: {availability_status}")
 
         if availability_status != 'unavailable':
             # 第一条消息：KSA is available

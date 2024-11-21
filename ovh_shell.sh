@@ -23,14 +23,29 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# 在文件开头添加日志目录设置
+LOG_DIR="logs"
+PYTHON_LOG="$LOG_DIR/python_output.log"
+SCRIPT_LOG="$LOG_DIR/script_output.log"
+
 # 清理函数
 cleanup() {
     print_info "执行清理操作..."
     if [ -f "monitor.pid" ]; then
-        kill $(cat monitor.pid) 2>/dev/null || true
+        local pid=$(cat monitor.pid)
+        if ps -p $pid > /dev/null 2>&1; then
+            kill $pid
+            print_success "已终止监控进程 (PID: $pid)"
+        fi
         rm monitor.pid
     fi
     rm -f ovh-ksa_temp.py
+    
+    # 压缩旧日志文件
+    if [ -f "$PYTHON_LOG" ]; then
+        gzip -f "$PYTHON_LOG"
+        mv "$PYTHON_LOG.gz" "$LOG_DIR/python_output_$(date +%Y%m%d_%H%M%S).log.gz"
+    fi
 }
 trap cleanup EXIT
 
@@ -136,6 +151,21 @@ configure_python_script() {
     print_success "Python 脚本配置完成"
 }
 
+# 添加日志初始化函数
+init_logging() {
+    # 创建日志目录
+    mkdir -p "$LOG_DIR"
+    
+    # 创建新的日志文件
+    touch "$PYTHON_LOG"
+    touch "$SCRIPT_LOG"
+    
+    # 设置日志文件权限
+    chmod 644 "$PYTHON_LOG" "$SCRIPT_LOG"
+    
+    print_info "日志文件已初始化"
+}
+
 # 启动监控脚本
 start_monitor() {
     print_success "配置完成，开始运行监控脚本..."
@@ -151,8 +181,8 @@ start_monitor() {
         fi
     fi
 
-    # 运行脚本
-    nohup python3 ovh-ksa_temp.py > nohup.out 2>&1 &
+    # 运行脚本，同时输出到控制台和日志文件
+    nohup python3 ovh-ksa_temp.py > >(tee -a "$PYTHON_LOG") 2>&1 &
     
     # 保存进程ID并验证进程是否成功启动
     local PID=$!
@@ -161,8 +191,9 @@ start_monitor() {
     if ps -p $PID > /dev/null; then
         echo $PID > monitor.pid
         print_success "监控脚本已在后台启动，进程ID: $PID"
-        print_info "查看日志请使用: tail -f nohup.out"
-        print_info "停止脚本请使用: kill $(cat monitor.pid)"
+        print_info "查看Python输出: tail -f $PYTHON_LOG"
+        print_info "查看脚本日志: tail -f $SCRIPT_LOG"
+        print_info "停止脚本请使用选项 2"
     else
         print_error "错误：脚本启动失败"
         exit 1
@@ -193,9 +224,11 @@ show_menu() {
         print_info "请选择操作："
         echo "1. 运行监控脚本"
         echo "2. 停止监控脚本"
-        echo "3. 退出"
+        echo "3. 查看Python输出"
+        echo "4. 查看历史日志"
+        echo "5. 退出"
         echo
-        read -p "请输入选项 (1-3): " choice
+        read -p "请输入选项 (1-5): " choice
 
         case $choice in
             1)
@@ -209,6 +242,26 @@ show_menu() {
                 stop_monitor
                 ;;
             3)
+                if [ -f "$PYTHON_LOG" ]; then
+                    less "$PYTHON_LOG"
+                else
+                    print_error "Python日志文件不存在"
+                fi
+                ;;
+            4)
+                echo "可用的日志文件："
+                ls -lh "$LOG_DIR"/*.log* 2>/dev/null || echo "没有找到日志文件"
+                echo
+                read -p "请输入要查看的日志文件名（直接回车返回）: " log_file
+                if [ ! -z "$log_file" ]; then
+                    if [ -f "$LOG_DIR/$log_file" ]; then
+                        less "$LOG_DIR/$log_file"
+                    else
+                        print_error "文件不存在"
+                    fi
+                fi
+                ;;
+            5)
                 print_info "退出程序"
                 exit 0
                 ;;
@@ -253,9 +306,15 @@ setup_script() {
 
 # 主函数
 main() {
+    # 初始化日志
+    init_logging
+    
+    # 记录脚本启动时间
+    print_info "脚本启动于 $(date)" >> "$SCRIPT_LOG"
+    
     # 显示菜单
     show_menu
 }
 
-# 运行主函数
-main "$@" > >(tee -a nohup.out) 2>&1
+# 运行主函数，同时记录输出
+main "$@" 2>&1 | tee -a "$SCRIPT_LOG"
