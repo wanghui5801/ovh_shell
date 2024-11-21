@@ -153,22 +153,34 @@ configure_python_script() {
 
 # 添加日志初始化函数
 init_logging() {
-    # 创建日志目录
-    mkdir -p "$LOG_DIR"
+    print_info "初始化日志系统..."
     
-    # 创建新的日志文件
-    touch "$PYTHON_LOG"
-    touch "$SCRIPT_LOG"
+    # 确保日志目录存在
+    if [ ! -d "$LOG_DIR" ]; then
+        mkdir -p "$LOG_DIR"
+        print_success "创建日志目录: $LOG_DIR"
+    fi
     
-    # 设置日志文件权限
-    chmod 644 "$PYTHON_LOG" "$SCRIPT_LOG"
+    # 确保日志文件存在
+    if [ ! -f "$PYTHON_LOG" ]; then
+        touch "$PYTHON_LOG"
+        chmod 644 "$PYTHON_LOG"
+        print_success "创建Python日志文件: $PYTHON_LOG"
+    fi
     
-    print_info "日志文件已初始化"
+    if [ ! -f "$SCRIPT_LOG" ]; then
+        touch "$SCRIPT_LOG"
+        chmod 644 "$SCRIPT_LOG"
+        print_success "创建脚本日志文件: $SCRIPT_LOG"
+    fi
 }
 
 # 启动监控脚本
 start_monitor() {
     print_success "配置完成，开始运行监控脚本..."
+    
+    # 确保日志目录和文件存在
+    init_logging
     
     # 检查是否已有实例在运行
     if [ -f "monitor.pid" ]; then
@@ -193,7 +205,6 @@ start_monitor() {
         print_success "监控脚本已在后台启动，进程ID: $PID"
         print_info "查看Python输出: tail -f $PYTHON_LOG"
         print_info "查看脚本日志: tail -f $SCRIPT_LOG"
-        print_info "停止脚本请使用选项 2"
     else
         print_error "错误：脚本启动失败"
         exit 1
@@ -242,6 +253,9 @@ show_menu() {
                 stop_monitor
                 ;;
             3)
+                if [ ! -f "$PYTHON_LOG" ]; then
+                    init_logging
+                fi
                 if [ -f "$PYTHON_LOG" ]; then
                     less "$PYTHON_LOG"
                 else
@@ -249,6 +263,9 @@ show_menu() {
                 fi
                 ;;
             4)
+                if [ ! -d "$LOG_DIR" ]; then
+                    init_logging
+                fi
                 echo "可用的日志文件："
                 ls -lh "$LOG_DIR"/*.log* 2>/dev/null || echo "没有找到日志文件"
                 echo
