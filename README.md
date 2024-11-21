@@ -46,6 +46,30 @@ chmod +x ovh_shell.sh
 sudo ./ovh_shell.sh
 ```
 
+## Background Execution
+
+There are several methods to run the script in the background:
+
+### Using Screen (Recommended)
+
+Screen allows you to create a persistent terminal session that continues running even after you disconnect.
+
+```bash
+# Install screen
+sudo apt-get install screen  # For Debian/Ubuntu
+sudo yum install screen      # For CentOS/RHEL
+
+# Create a new screen session
+screen -S ovh_monitor
+
+# Run the script
+bash -c "$(curl -sSL https://raw.githubusercontent.com/wanghui5801/ovh_shell/main/ovh_shell.sh)"
+
+# Detach from screen session: Press Ctrl+A, then D
+# Reattach to screen session:
+screen -r ovh_monitor
+```
+
 ## Configuration
 
 When running the script, you need to provide the following information:
