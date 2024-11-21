@@ -1,331 +1,43 @@
 #!/bin/bash
 
-# 错误处理
-set -e  # 遇到错误立即退出
-trap 'echo "发生错误，脚本退出"; exit 1' ERR
+# 检查是否使用 bash 运行
+if [ -z "$BASH_VERSION" ]; then
+    echo "请使用 bash 运行此脚本"
+    exit 1
+fi
 
-# 设置颜色输出
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
+# 更新软件包列表并安装必要的包
+echo "正在更新软件包列表..."
+sudo apt-get update
 
-# 打印带颜色的信息函数
-print_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
+echo "正在安装必要的包..."
+sudo apt-get install -y python3 python3-pip
 
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
+# 安装所需的 Python 模块
+echo "正在安装所需的 Python 模块..."
+pip3 install --user ovh requests
 
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+# 提示用户输入 BOT_TOKEN 和 CHAT_ID
+read -p "请输入您的 Telegram BOT_TOKEN: " BOT_TOKEN
+read -p "请输入您的 Telegram CHAT_ID: " CHAT_ID
 
-# 在文件开头添加日志目录设置
-LOG_DIR="logs"
-PYTHON_LOG="$LOG_DIR/python_output.log"
-SCRIPT_LOG="$LOG_DIR/script_output.log"
+# 提示用户输入 OVH API 凭据
+read -p "请输入您的 OVH_ENDPOINT (默认: ovh-eu): " OVH_ENDPOINT
+OVH_ENDPOINT=${OVH_ENDPOINT:-ovh-eu}
 
-# 清理函数
-cleanup() {
-    print_info "执行清理操作..."
-    if [ -f "monitor.pid" ]; then
-        local pid=$(cat monitor.pid)
-        if ps -p $pid > /dev/null 2>&1; then
-            kill $pid
-            print_success "已终止监控进程 (PID: $pid)"
-        fi
-        rm monitor.pid
-    fi
-    rm -f ovh-ksa_temp.py
-}
+read -p "请输入您的 OVH_APPLICATION_KEY: " OVH_APPLICATION_KEY
+read -s -p "请输入您的 OVH_APPLICATION_SECRET: " OVH_APPLICATION_SECRET
+echo
+read -p "请输入您的 OVH_CONSUMER_KEY: " OVH_CONSUMER_KEY
 
-# 添加日志归档函数
-archive_logs() {
-    print_info "归档旧日志文件..."
-    if [ -f "$PYTHON_LOG" ]; then
-        local timestamp=$(date +%Y%m%d_%H%M%S)
-        gzip -c "$PYTHON_LOG" > "$LOG_DIR/python_output_${timestamp}.log.gz"
-        : > "$PYTHON_LOG"  # 清空当前日志文件而不是删除它
-        print_success "日志已归档为: python_output_${timestamp}.log.gz"
-    fi
-}
+# 导出环境变量
+export BOT_TOKEN
+export CHAT_ID
+export OVH_ENDPOINT
+export OVH_APPLICATION_KEY
+export OVH_APPLICATION_SECRET
+export OVH_CONSUMER_KEY
 
-trap cleanup EXIT
-
-# 验证输入参数
-validate_input() {
-    if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ] || [ -z "$ENDPOINT" ] || \
-       [ -z "$APP_KEY" ] || [ -z "$APP_SECRET" ] || [ -z "$CONSUMER_KEY" ]; then
-        print_error "错误：所有参数都必须填写"
-        exit 1
-    fi
-
-    # 验证 Telegram Bot Token 格式
-    if [[ ! $BOT_TOKEN =~ ^[0-9]+:[a-zA-Z0-9_-]+$ ]]; then
-        print_error "错误：Telegram Bot Token 格式不正确"
-        exit 1
-    fi
-
-    # 验证 Chat ID 格式
-    if [[ ! $CHAT_ID =~ ^-?[0-9]+$ ]]; then
-        print_error "错误：Telegram Chat ID 格式不正确"
-        exit 1
-    fi
-
-    # 验证 endpoint
-    if [[ ! $ENDPOINT =~ ^(ovh-eu|ovh-us|ovh-ca)$ ]]; then
-        print_error "错误：endpoint 必须是 ovh-eu, ovh-us 或 ovh-ca 之一"
-        exit 1
-    fi
-}
-
-# 检查必要的软件
-check_requirements() {
-    print_info "检查必要的软件..."
-    
-    local packages_to_install=()
-    
-    # 检查 git
-    if ! command -v git &> /dev/null; then
-        packages_to_install+=("git")
-    fi
-
-    # 检查 Python3
-    if ! command -v python3 &> /dev/null; then
-        packages_to_install+=("python3" "python3-pip")
-    fi
-
-    # 如果有需要安装的包
-    if [ ${#packages_to_install[@]} -ne 0 ]; then
-        print_info "正在安装必要的软件包: ${packages_to_install[*]}"
-        sudo apt-get update
-        sudo apt-get install -y "${packages_to_install[@]}"
-    fi
-
-    # 检查并安装 Python 依赖
-    print_info "安装 Python 依赖..."
-    pip3 install --upgrade pip
-    pip3 install ovh requests
-}
-
-# 克隆或更新仓库
-setup_repository() {
-    local repo_url="https://github.com/wanghui5801/ovh_shell.git"
-    if [ -d "ovh_shell" ]; then
-        print_info "更新仓库..."
-        cd ovh_shell
-        git fetch
-        local changes=$(git rev-list HEAD...origin/main --count)
-        if [ "$changes" -gt 0 ]; then
-            git pull
-            print_success "仓库已更新到最新版本"
-        else
-            print_info "仓库已是最新版本"
-        fi
-    else
-        print_info "克隆仓库..."
-        git clone "$repo_url"
-        cd ovh_shell
-        print_success "仓库克隆完成"
-    fi
-}
-
-# 配置 Python 脚本
-configure_python_script() {
-    print_info "配置 Python 脚本..."
-    if [ ! -f "ovh-ksa.py" ]; then
-        print_error "错误：源 Python 脚本不存在"
-        exit 1
-    fi
-
-    sed -e "s/BOT_TOKEN = \"\"/BOT_TOKEN = \"$BOT_TOKEN\"/" \
-        -e "s/CHAT_ID = \"\"/CHAT_ID = \"$CHAT_ID\"/" \
-        -e "s/endpoint=''/endpoint='$ENDPOINT'/" \
-        -e "s/application_key=''/application_key='$APP_KEY'/" \
-        -e "s/application_secret=''/application_secret='$APP_SECRET'/" \
-        -e "s/consumer_key=''/consumer_key='$CONSUMER_KEY'/" \
-        ovh-ksa.py > ovh-ksa_temp.py
-
-    if [ ! -f "ovh-ksa_temp.py" ]; then
-        print_error "错误：配置文件生成失败"
-        exit 1
-    fi
-
-    print_success "Python 脚本配置完成"
-}
-
-# 添加日志初始化函数
-init_logging() {
-    print_info "初始化日志系统..."
-    
-    # 确保日志目录存在
-    if [ ! -d "$LOG_DIR" ]; then
-        mkdir -p "$LOG_DIR"
-        print_success "创建日志目录: $LOG_DIR"
-    fi
-    
-    # 确保日志文件存在
-    if [ ! -f "$PYTHON_LOG" ]; then
-        touch "$PYTHON_LOG"
-        chmod 644 "$PYTHON_LOG"
-        print_success "创建Python日志文件: $PYTHON_LOG"
-    fi
-    
-    if [ ! -f "$SCRIPT_LOG" ]; then
-        touch "$SCRIPT_LOG"
-        chmod 644 "$SCRIPT_LOG"
-        print_success "创建脚本日志文件: $SCRIPT_LOG"
-    fi
-}
-
-# 启动监控脚本
-start_monitor() {
-    print_success "配置完成，开始运行监控脚本..."
-    
-    # 确保日志目录和文件存在
-    init_logging
-    
-    # 检查是否已有实例在运行
-    if [ -f "monitor.pid" ]; then
-        local old_pid=$(cat monitor.pid)
-        if ps -p $old_pid > /dev/null 2>&1; then
-            print_error "监控脚本已在运行中 (PID: $old_pid)"
-            exit 1
-        else
-            rm monitor.pid
-        fi
-    fi
-
-    # 运行脚本，同时输出到控制台和日志文件
-    nohup python3 ovh-ksa_temp.py > >(tee -a "$PYTHON_LOG") 2>&1 &
-    
-    # 保存进程ID并验证进程是否成功启动
-    local PID=$!
-    sleep 2  # 等待进程启动
-    
-    if ps -p $PID > /dev/null; then
-        echo $PID > monitor.pid
-        print_success "监控脚本已在后台启动，进程ID: $PID"
-        print_info "查看Python输出: tail -f $PYTHON_LOG"
-        print_info "查看脚本日志: tail -f $SCRIPT_LOG"
-    else
-        print_error "错误：脚本启动失败"
-        exit 1
-    fi
-}
-
-# 停止监控脚本
-stop_monitor() {
-    if [ -f "monitor.pid" ]; then
-        local pid=$(cat monitor.pid)
-        if ps -p $pid > /dev/null 2>&1; then
-            kill $pid
-            rm monitor.pid
-            print_success "监控脚本已停止 (PID: $pid)"
-            exit 0  # 完全退出脚本
-        else
-            print_info "监控脚本未在运行"
-            rm monitor.pid
-        fi
-    else
-        print_info "没有找到运行中的监控脚本"
-    fi
-}
-
-# 显示菜单
-show_menu() {
-    while true; do
-        echo
-        print_info "请选择操作："
-        echo "1. 运行监控脚本"
-        echo "2. 停止监控脚本"
-        echo "3. 查看Python输出"
-        echo "4. 退出菜单"
-        echo
-        read -p "请输入选项 (1-4): " choice
-
-        case $choice in
-            1)
-                if [ -f "monitor.pid" ] && ps -p $(cat monitor.pid) > /dev/null 2>&1; then
-                    print_error "监控脚本已在运行中"
-                else
-                    setup_script
-                fi
-                ;;
-            2)
-                if [ -f "monitor.pid" ]; then
-                    local pid=$(cat monitor.pid)
-                    if ps -p $pid > /dev/null 2>&1; then
-                        kill $pid
-                        rm monitor.pid
-                        print_success "监控脚本已停止 (PID: $pid)"
-                    else
-                        print_info "监控脚本未在运行"
-                        rm monitor.pid
-                    fi
-                else
-                    print_info "没有找到运行中的监控脚本"
-                fi
-                ;;
-            3)
-                if [ -f "$PYTHON_LOG" ]; then
-                    tail -f "$PYTHON_LOG"  # 使用 tail -f 实时查看日志
-                else
-                    print_error "Python日志文件不存在"
-                    init_logging
-                fi
-                ;;
-            4)
-                print_info "退出菜单，监控脚本继续在后台运行"
-                exit 0
-                ;;
-            *)
-                print_error "无效的选项，请重新选择"
-                ;;
-        esac
-    done
-}
-
-# 设置和运行脚本
-setup_script() {
-    print_info "开始设置环境..."
-    
-    # 检查依赖
-    check_requirements
-    
-    # 获取用户输入
-    print_info "请输入必要的参数："
-    read -p "请输入 Telegram Bot Token: " BOT_TOKEN
-    read -p "请输入 Telegram Chat ID: " CHAT_ID
-    read -p "请输入 OVH endpoint (ovh-eu/ovh-us/ovh-ca): " ENDPOINT
-    read -p "请输入 OVH Application Key: " APP_KEY
-    read -p "请输入 OVH Application Secret: " APP_SECRET
-    read -p "请输入 OVH Consumer Key: " CONSUMER_KEY
-    
-    # 验证输入
-    validate_input
-    
-    # 配置 Python 脚本
-    configure_python_script
-    
-    # 启动监控
-    start_monitor
-}
-
-# 主函数
-main() {
-    # 初始化日志
-    init_logging
-    
-    # 记录脚本启动时间
-    print_info "脚本启动于 $(date)" >> "$SCRIPT_LOG"
-    
-    # 显示菜单
-    show_menu
-}
-
-# 运行主函数，同时记录输出
-main "$@" 2>&1 | tee -a "$SCRIPT_LOG"
+# 运行您的 Python 脚本
+echo "正在运行您的 Python 脚本..."
+python3 ovh-ksa.py

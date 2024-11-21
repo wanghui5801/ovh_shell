@@ -1,3 +1,4 @@
+import os
 import requests
 import ovh
 import time
@@ -5,16 +6,32 @@ from requests.exceptions import RequestException
 from ovh.exceptions import APIError, NetworkError
 from datetime import datetime
 
-# 您的 bot token 和 chat id
-BOT_TOKEN = ""
-CHAT_ID = ""
+# 从环境变量中获取 BOT_TOKEN 和 CHAT_ID
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+CHAT_ID = os.environ.get("CHAT_ID")
+
+# 检查是否获取到了必要的环境变量
+if not BOT_TOKEN or not CHAT_ID:
+    print("Error: BOT_TOKEN or CHAT_ID environment variables not set.")
+    exit(1)
+
+# 从环境变量中获取 OVH API 凭据
+OVH_ENDPOINT = os.environ.get("OVH_ENDPOINT", "ovh-eu")
+OVH_APPLICATION_KEY = os.environ.get("OVH_APPLICATION_KEY")
+OVH_APPLICATION_SECRET = os.environ.get("OVH_APPLICATION_SECRET")
+OVH_CONSUMER_KEY = os.environ.get("OVH_CONSUMER_KEY")
+
+# 检查 OVH API 凭据是否完整
+if not OVH_APPLICATION_KEY or not OVH_APPLICATION_SECRET or not OVH_CONSUMER_KEY:
+    print("Error: OVH API credentials are not fully set.")
+    exit(1)
 
 # 实例化客户端
 client = ovh.Client(
-    endpoint='',
-    application_key='',
-    application_secret='',
-    consumer_key='',
+    endpoint=OVH_ENDPOINT,
+    application_key=OVH_APPLICATION_KEY,
+    application_secret=OVH_APPLICATION_SECRET,
+    consumer_key=OVH_CONSUMER_KEY,
 )
 
 # 函数：重试网络请求
