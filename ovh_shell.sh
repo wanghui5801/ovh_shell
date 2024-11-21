@@ -225,6 +225,7 @@ stop_monitor() {
             kill $pid
             rm monitor.pid
             print_success "监控脚本已停止 (PID: $pid)"
+            exit 0  # 完全退出脚本
         else
             print_info "监控脚本未在运行"
             rm monitor.pid
@@ -235,7 +236,6 @@ stop_monitor() {
 }
 
 # 显示菜单
-# 显示菜单
 show_menu() {
     while true; do
         echo
@@ -243,7 +243,7 @@ show_menu() {
         echo "1. 运行监控脚本"
         echo "2. 停止监控脚本"
         echo "3. 查看Python输出"
-        echo "4. 退出"
+        echo "4. 退出菜单"
         echo
         read -p "请输入选项 (1-4): " choice
 
@@ -256,20 +256,30 @@ show_menu() {
                 fi
                 ;;
             2)
-                stop_monitor
+                if [ -f "monitor.pid" ]; then
+                    local pid=$(cat monitor.pid)
+                    if ps -p $pid > /dev/null 2>&1; then
+                        kill $pid
+                        rm monitor.pid
+                        print_success "监控脚本已停止 (PID: $pid)"
+                    else
+                        print_info "监控脚本未在运行"
+                        rm monitor.pid
+                    fi
+                else
+                    print_info "没有找到运行中的监控脚本"
+                fi
                 ;;
             3)
-                if [ ! -f "$PYTHON_LOG" ]; then
-                    init_logging
-                fi
                 if [ -f "$PYTHON_LOG" ]; then
-                    less "$PYTHON_LOG"
+                    tail -f "$PYTHON_LOG"  # 使用 tail -f 实时查看日志
                 else
                     print_error "Python日志文件不存在"
+                    init_logging
                 fi
                 ;;
             4)
-                print_info "退出程序"
+                print_info "退出菜单，监控脚本继续在后台运行"
                 exit 0
                 ;;
             *)
