@@ -26,29 +26,29 @@ if [ -x "$(command -v apt-get)" ]; then
     PACKAGE_MANAGER="apt-get"
     UPDATE_CMD="apt-get update"
     INSTALL_CMD="apt-get install -y"
-    PYTHON_PKG="python3 python3-pip"
+    PYTHON_PKG="python3 python3-pip python3-venv"
 elif [ -x "$(command -v yum)" ]; then
     PACKAGE_MANAGER="yum"
     UPDATE_CMD="yum makecache"
     INSTALL_CMD="yum install -y"
-    PYTHON_PKG="python3 python3-pip"
+    PYTHON_PKG="python3 python3-pip python3-virtualenv"
 elif [ -x "$(command -v dnf)" ]; then
     PACKAGE_MANAGER="dnf"
     UPDATE_CMD="dnf makecache"
     INSTALL_CMD="dnf install -y"
-    PYTHON_PKG="python3 python3-pip"
+    PYTHON_PKG="python3 python3-pip python3-virtualenv"
 elif [ -x "$(command -v zypper)" ]; then
     PACKAGE_MANAGER="zypper"
     UPDATE_CMD="zypper refresh"
     INSTALL_CMD="zypper install -y"
-    PYTHON_PKG="python3 python3-pip"
+    PYTHON_PKG="python3 python3-pip python3-virtualenv"
 elif [ -x "$(command -v pacman)" ]; then
     PACKAGE_MANAGER="pacman"
     UPDATE_CMD="pacman -Sy"
     INSTALL_CMD="pacman -S --noconfirm"
-    PYTHON_PKG="python python-pip"
+    PYTHON_PKG="python python-pip python-virtualenv"
 else
-    echo -e "${RED}Unsupported package manager. Please manually install Python 3 and pip.${RESET}"
+    echo -e "${RED}Unsupported package manager. Please manually install Python 3, pip and virtualenv.${RESET}"
     exit 1
 fi
 
@@ -72,9 +72,19 @@ else
     PIP_CMD="pip3"
 fi
 
+# Create and activate virtual environment
+echo -e "${CYAN}Creating Python virtual environment...${RESET}"
+python3 -m venv venv
+
+source venv/bin/activate
+
+# Upgrade pip (optional but recommended)
+echo -e "${CYAN}Upgrading pip...${RESET}"
+pip install --upgrade pip
+
 # Install required Python modules
 echo -e "${CYAN}Installing required Python modules...${RESET}"
-$PIP_CMD install ovh requests
+pip install ovh requests
 
 # Prompt user for credentials
 echo -e "${GREEN}Please enter your Telegram and OVH API credentials:${RESET}"
@@ -87,8 +97,7 @@ read -p "$(echo -e ${MAGENTA}Please enter your OVH_ENDPOINT [default: ovh-eu]:${
 OVH_ENDPOINT=${OVH_ENDPOINT:-ovh-eu}
 
 read -p "$(echo -e ${MAGENTA}Please enter your OVH_APPLICATION_KEY:${RESET} )" OVH_APPLICATION_KEY </dev/tty
-read -s -p "$(echo -e ${MAGENTA}Please enter your OVH_APPLICATION_SECRET:${RESET} )" OVH_APPLICATION_SECRET </dev/tty
-echo
+read -p "$(echo -e ${MAGENTA}Please enter your OVH_APPLICATION_SECRET:${RESET} )" OVH_APPLICATION_SECRET </dev/tty
 read -p "$(echo -e ${MAGENTA}Please enter your OVH_CONSUMER_KEY:${RESET} )" OVH_CONSUMER_KEY </dev/tty
 echo -e "${YELLOW}----------------------------------------${RESET}"
 
@@ -102,7 +111,8 @@ export OVH_CONSUMER_KEY
 
 # Check if required environment variables are set
 if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ] || [ -z "$OVH_APPLICATION_KEY" ] || [ -z "$OVH_APPLICATION_SECRET" ] || [ -z "$OVH_CONSUMER_KEY" ]; then
-    echo -e "${RED}Error: All inputs are required. Please ensure all fields are filled.${RESET}"
+    echo -e "${RED}Error: All inputs are required. Please make sure to fill in everything.${RESET}"
+    deactivate
     exit 1
 fi
 
@@ -110,6 +120,9 @@ fi
 echo -e "${CYAN}Downloading Python script...${RESET}"
 curl -sSL https://raw.githubusercontent.com/wanghui5801/ovh_shell/main/ovh-ksa.py -o ovh-ksa.py
 
-# Run Python script
+# Run your Python script
 echo -e "${CYAN}Running your Python script...${RESET}"
-python3 ovh-ksa.py
+python ovh-ksa.py
+
+# Exit virtual environment
+deactivate
