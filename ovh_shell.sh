@@ -79,16 +79,17 @@ $PIP_CMD install ovh requests
 # 提示用户输入凭据
 echo -e "${GREEN}请按照提示输入您的 Telegram 和 OVH API 凭据：${RESET}"
 echo -e "${YELLOW}----------------------------------------${RESET}"
-read -p "$(echo -e ${MAGENTA}请输入您的 Telegram BOT_TOKEN:${RESET} )" BOT_TOKEN
-read -p "$(echo -e ${MAGENTA}请输入您的 Telegram CHAT_ID:${RESET} )" CHAT_ID
 
-read -p "$(echo -e ${MAGENTA}请输入您的 OVH_ENDPOINT [默认: ovh-eu]:${RESET} )" OVH_ENDPOINT
+read -p "$(echo -e ${MAGENTA}请输入您的 Telegram BOT_TOKEN:${RESET} )" BOT_TOKEN </dev/tty
+read -p "$(echo -e ${MAGENTA}请输入您的 Telegram CHAT_ID:${RESET} )" CHAT_ID </dev/tty
+
+read -p "$(echo -e ${MAGENTA}请输入您的 OVH_ENDPOINT [默认: ovh-eu]:${RESET} )" OVH_ENDPOINT </dev/tty
 OVH_ENDPOINT=${OVH_ENDPOINT:-ovh-eu}
 
-read -p "$(echo -e ${MAGENTA}请输入您的 OVH_APPLICATION_KEY:${RESET} )" OVH_APPLICATION_KEY
-read -s -p "$(echo -e ${MAGENTA}请输入您的 OVH_APPLICATION_SECRET:${RESET} )" OVH_APPLICATION_SECRET
+read -p "$(echo -e ${MAGENTA}请输入您的 OVH_APPLICATION_KEY:${RESET} )" OVH_APPLICATION_KEY </dev/tty
+read -s -p "$(echo -e ${MAGENTA}请输入您的 OVH_APPLICATION_SECRET:${RESET} )" OVH_APPLICATION_SECRET </dev/tty
 echo
-read -p "$(echo -e ${MAGENTA}请输入您的 OVH_CONSUMER_KEY:${RESET} )" OVH_CONSUMER_KEY
+read -p "$(echo -e ${MAGENTA}请输入您的 OVH_CONSUMER_KEY:${RESET} )" OVH_CONSUMER_KEY </dev/tty
 echo -e "${YELLOW}----------------------------------------${RESET}"
 
 # 导出环境变量
